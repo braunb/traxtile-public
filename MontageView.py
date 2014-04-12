@@ -3,6 +3,7 @@ from collections import *
 from Tkinter import *
 import ttk
 import ImageViewer
+import platform
 
 
 class LimitedSizeDict(OrderedDict):
@@ -560,9 +561,12 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
         return panel['cx']-panel['w'], panel['cy']-panel['h'], panel['cx']+panel['w'], panel['cy']+panel['h']
 
     def montageClick(self, event):
-        # print "state", format(event.state, '04x'), bin(event.state)
-        # print "cmd-click:", event.state == 0x0108  # TODO: make platform independent
-        linkMode = (event.state == 0x0108)  # http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/event-handlers.html
+        # print "state", format(event.state, '08x'), bin(event.state)
+        if "Windows" in platform.system():
+            linkMode = (event.state & 0x20000) > 0  # this seems to be required in Win 7 for Alt key state
+        else:
+            linkMode = (event.state & 0x008) > 0
+            # http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/event-handlers.html
         canvas = event.widget
         x = canvas.canvasx(event.x)
         y = canvas.canvasy(event.y)
@@ -624,26 +628,31 @@ class MontageView(Frame):  # a main window for the whole app
         self.butNext = ttk.Button(self.utilFrame, text='>', command=self.mc.nextMontage)
         self.butGo = ttk.Button(self.utilFrame, text='Go To', command=self.mc.goToMontage)
 
-        self.ancestorLabel = ttk.Label(self.cellInspectorFrame, text='Prior Branch', font='Helvetica 14 bold')
-        self.ancestorKeyLabel = ttk.Label(self.cellInspectorFrame, text='ancestorKey', font='Helvetica 14 bold')
-        self.rootsLabel = ttk.Label(self.cellInspectorFrame, text='  Roots  ', font='Helvetica 14 bold')
-        self.rootListLabel = ttk.Label(self.cellInspectorFrame, text='Roots', font='Helvetica 14 bold', justify=CENTER)
+        if 'Darwin' in platform.system():
+            font_label = 'Helvetica 14 bold'
+        else:
+            font_label = 'Helvetica 11 bold'
+
+        self.ancestorLabel = ttk.Label(self.cellInspectorFrame, text='Prior Branch', font=font_label)
+        self.ancestorKeyLabel = ttk.Label(self.cellInspectorFrame, text='ancestorKey', font=font_label)
+        self.rootsLabel = ttk.Label(self.cellInspectorFrame, text='  Roots  ', font=font_label)
+        self.rootListLabel = ttk.Label(self.cellInspectorFrame, text='Roots', font=font_label, justify=CENTER)
         #self.listboxRoots = Listbox(self.cellInspectorFrame, height=3)
 
-        self.parentsListLabel = ttk.Label(self.cellInspectorFrame, text='Parents', font='Helvetica 14 bold')
+        self.parentsListLabel = ttk.Label(self.cellInspectorFrame, text='Parents', font=font_label)
         self.listboxParents = Listbox(self.cellInspectorFrame, height=3)
         self.unlinkParentButton = ttk.Button(self.cellInspectorFrame, text='Unlink Parent', command=self.mc.unlinkParentClick)
         self.addParentButton = ttk.Button(self.cellInspectorFrame, text='Add Parent', command=self.mc.addParentClick)
 
-        self.childrenListLabel = ttk.Label(self.cellInspectorFrame, text='Children', font='Helvetica 14 bold')
+        self.childrenListLabel = ttk.Label(self.cellInspectorFrame, text='Children', font=font_label)
         self.listboxChildren = Listbox(self.cellInspectorFrame, height=3)
         self.unlinkChildButton = ttk.Button(self.cellInspectorFrame, text='Unlink Child', command=self.mc.unlinkChildClick)
         self.addChildButton = ttk.Button(self.cellInspectorFrame, text='Add Child', command=self.mc.addChildClick)
 
-        self.descendantLabel = ttk.Label(self.cellInspectorFrame, text='Next Branch', font='Helvetica 14 bold')
-        self.descendantKeyLabel = ttk.Label(self.cellInspectorFrame, text='descendant', font='Helvetica 14 bold')
-        self.tipsLabel = ttk.Label(self.cellInspectorFrame, text='  Tips  ', font='Helvetica 14 bold')
-        self.tipListLabel = ttk.Label(self.cellInspectorFrame, text='Roots', font='Helvetica 14 bold', justify=CENTER)
+        self.descendantLabel = ttk.Label(self.cellInspectorFrame, text='Next Branch', font=font_label)
+        self.descendantKeyLabel = ttk.Label(self.cellInspectorFrame, text='descendant', font=font_label)
+        self.tipsLabel = ttk.Label(self.cellInspectorFrame, text='  Tips  ', font=font_label)
+        self.tipListLabel = ttk.Label(self.cellInspectorFrame, text='Roots', font=font_label, justify=CENTER)
         #self.listboxTips = Listbox(self.cellInspectorFrame, height=3)
 
         self.heightHolder = ttk.Frame(self.cellInspectorFrame, height=150, width=1)

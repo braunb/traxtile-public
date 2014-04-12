@@ -58,7 +58,8 @@ def importTrackmodel(trackapp):
         def imageCsvFileButPress(self):
             # print 'file'
             fullname = tkFileDialog.askopenfilename(filetypes=[("csv", "*.csv"), ("All files", "*.*")],
-                                                    title="Open Image Data CSV File")
+                                                    title="Open Image Data CSV File",
+                                                    parent=self.mfiv.root)
             if fullname == '':
                 # print "none selected"
                 pass
@@ -71,7 +72,8 @@ def importTrackmodel(trackapp):
         def objectCsvFileButPress(self):
             # print 'file'
             fullname = tkFileDialog.askopenfilename(filetypes=[("csv", "*.csv"), ("All files", "*.*")],
-                                                    title="Open Object Data CSV File")
+                                                    title="Open Object Data CSV File",
+                                                    parent=self.mfiv.root)
             if fullname == '':
                 # print "none selected"
                 pass
@@ -93,7 +95,8 @@ def importTrackmodel(trackapp):
                     self.mfiv.updateFieldPicker(cf, fields, default=newValue)
 
         def panelImageButPress(self):
-            fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Panel Image File")
+            fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Panel Image File",
+                                                    parent=self.mfiv.root)
             if fullname == '':
                 print "none selected"
             else:
@@ -113,7 +116,8 @@ def importTrackmodel(trackapp):
                 self.mfiv.updatePanelName(panelNameDict)
 
         def wholeImageButPress(self):
-            fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Panel Image File")
+            fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Panel Image File",
+                                                    parent=self.mfiv.root)
             if fullname == '':
                 print "none selected"
             else:
@@ -186,10 +190,10 @@ def importTrackmodel(trackapp):
             self.root.lower()
 
             s = ttk.Style()
-            s.configure('My.TFrame', background='red')
+            # s.configure('My.TFrame', background='red')
 
-            content = ttk.Frame(self.root, width=500, height=300, padding=[20, 20], style='My.TFrame')
-            frm = ttk.Frame(content, width=500, height=300, relief='flat', borderwidth=2, style='My.TFrame')
+            content = ttk.Frame(self.root, width=500, height=300, padding=[20, 20])  #, style='My.TFrame')
+            frm = ttk.Frame(content, width=500, height=300, relief='flat', borderwidth=2)  #, style='My.TFrame')
             frm.config()
             # frm.pack(expand=True, fill='both')
 
@@ -321,6 +325,10 @@ def importTrackmodel(trackapp):
             okBut = ttk.Button(okfrm, text="OK", command=self.controller.oKpress)
             cancelBut.grid(row=10, column=0)
             okBut.grid(row=10, column=1)
+
+            # make default to use same images for tiles and whole images, and update display accordingly
+            self.wholeImageSame.set(1)
+            self.setWholeImages()
 
             center(self.root)
             # self.root.update()

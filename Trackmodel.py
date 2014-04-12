@@ -1,5 +1,6 @@
 # load required modules
 import glob                        # wildcard file search
+import os                          # file/path naming utilities
 import csv                         # read/write .csv files
 import math                        # required for exponential functions
 import itertools                   # required for list flattening
@@ -420,8 +421,9 @@ class MontageSession(object):
         return self.panelImageFilenameForIndex(targetImageNumber)
 
     def wholeImageFileList(self):
-        return glob.glob(self.wholeImageDir + "/" + self.imgFileNameBase + "*" +
-                         self.wholeImgFilenamePost + self.wholeImgExt)
+        pass
+        filename_template = self.wholeImageDir + "/" + self.imgFileNameBase + "*" + self.wholeImgFilenamePost + self.wholeImgExt
+        return [os.path.abspath(x) for x in glob.glob(filename_template)]
 
     def wholeImageFilenameForIndex(self, i):  # TODO: less hard coding of image filenames
         imgData = self.imageDictionary[i]
@@ -429,7 +431,7 @@ class MontageSession(object):
         fileNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
         imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir, self.imgFileNameBase, str(fileNumber).zfill(4),
                                                 self.wholeImgFilenamePost, self.wholeImgExt)
-        return imgFilename
+        return os.path.abspath(imgFilename)
 
     def wholeImageFilenameForKey(self, targetKey):
         target = self.objectDictionary[targetKey]

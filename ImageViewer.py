@@ -108,16 +108,16 @@ class ImageViewer(Toplevel):
         self.canvas.xview_moveto(xoffset)
         self.canvas.yview_moveto(yoffset)
 
-def main():
-    workDir = "/Users/bbraun/Dropbox/python/4-28_Test_LAP"
-    os.chdir(workDir)
-    imgFileList = glob.glob("*Outline*.gif")
-    root = Tk()
-    iv = ImageViewer(imgFileList)
-    root.mainloop()
-    pass
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     workDir = "/Users/bbraun/Dropbox/python/4-28_Test_LAP"
+#     os.chdir(workDir)
+#     imgFileList = glob.glob("*Outline*.gif")
+#     root = Tk()
+#     iv = ImageViewer(imgFileList)
+#     root.mainloop()
+#     pass
+#
+#
+# if __name__ == '__main__':
+#     main()
 

@@ -485,7 +485,7 @@ if __name__ == "__main__":
 
     menu_file = Menu(menubar)
     menubar.add_cascade(menu=menu_file, label='File')
-    menu_file.add_command(label='Open...', command=file_open, accelerator=accel+"-o")
+    menu_file.add_command(label='Open...', command=file_open, accelerator=accel+"-O")
     root.bind('<'+accel+'-o>', file_open)
 
     menu_file.add_command(label='Import CSV...', command=file_import, accelerator=accel+"-N")
@@ -505,7 +505,6 @@ if __name__ == "__main__":
     menu_analyze.add_command(label='Counts', command=report_counts)
     menu_analyze.add_command(label='Newick tree format', command=report_newick)
 
-
     menu_window = Menu(menubar)
     menubar.add_cascade(menu=menu_window, label='Window')
     menu_window.add_command(label='Images', command=openImages, accelerator=accel+"-I")
@@ -514,14 +513,15 @@ if __name__ == "__main__":
     root.bind('<'+accel+'-m>', minimize)
 
 
-    # MAC
-    hm = Menu(menubar, name='help')
-    menubar.add_cascade(label='Help', menu=hm)
-    hm.add_command(label='hi', command=men2)
-    menubar.add_cascade(menu=help)
+    # MAC help menu
+    if 'Darwin' in platform.system():
+        # hm = Menu(menubar, name='help')
+        # menubar.add_cascade(label='Help', menu=hm)
+        # hm.add_command(label='hi', command=men2)
+        # menubar.add_cascade(menu=help)
 
     trackapp = Trackapp()
-    trackapp.setModel(trackapp.testTm())
+#    trackapp.setModel(trackapp.testTm())
     root.focus_set()
     root.focus_force()
     #atexit.register(cleanUp)
