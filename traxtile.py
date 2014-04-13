@@ -233,9 +233,9 @@ class Trackapp():
         #objectDictionary = montageSession.objectDictionary
         #imageDictionary  = montageSession.imageDictionary
         #sortedObjectKeys = montageSession.sortedObjectKeys
-        new_tm = Trackmodel.MontageSession.load(filename)
-        self.setModel(new_tm)
         if filename is not None:
+            new_tm = Trackmodel.MontageSession.load(filename)
+            self.setModel(new_tm)
             self.tm.saveFilename = filename
         # print "splits: ", self.tm.splitKeyList
         # self.buildReviewKeyList()
@@ -519,6 +519,7 @@ if __name__ == "__main__":
         # menubar.add_cascade(label='Help', menu=hm)
         # hm.add_command(label='hi', command=men2)
         # menubar.add_cascade(menu=help)
+        pass
 
     trackapp = Trackapp()
 #    trackapp.setModel(trackapp.testTm())
