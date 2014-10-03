@@ -5,6 +5,8 @@ import csv                         # read/write .csv files
 import math                        # required for exponential functions
 import itertools                   # required for list flattening
 import re                          # regex
+import Trax_io_icy              # Icy file import
+import Trax_io_trackmate
 # import time
 
 try:
@@ -16,10 +18,10 @@ except ImportError:
 class MontageSession(object):
     def __init__(self):
         # core data structures
-        self.objectDictionary = dict()  #: holds info about each cell (object), parents and children
+        self.objectDictionary = dict()  # holds info about each cell (object), parents and children
         self.imageDictionary = dict()   # holds info about each frame in the series
         # imageDictionary does 2 things:
-        #  (1) translates from a row index to a file number, which can differ when there is a missing input file for CP
+        #  (1) translates from a frame index to a file time #, which can differ when an input file for CP is missing
         #  (2) holds the list of keys for objects present in each frame, used for spots & labels
         self.keyTree = dict()    # used for building concise trees in Newick format
         # lists of 'special' cells, maintained to reduce need to query self.objectDictionary, which is costly
@@ -32,13 +34,13 @@ class MontageSession(object):
         self.disappearList = []  # a disappearance (a type of tip)
         # input files & directories
         self.panelImageDir = ""
-        self.imageCsvFilename = ""
-        self.objectCsvFilename = ""
+        # self.imageCsvFilename = ""  # TODO: make this more flexible for variation in file format NOT!
+        # self.objectCsvFilename = ""  # TODO: make this more flexible for variation in file format NOT!
         self.panelImgFilenameBase = ""  # used for montage panels; may be the same or different
         self.panelImgFilenamePost = ""
         self.panelImgExt = ""
         self.wholeImageDir = ""
-        self.imgFileNameBase = ""  # used for whole image viewer
+        self.wholeImgFileNameBase = ""  # used for whole image viewer
         self.wholeImgFilenamePost = ""
         self.wholeImgExt = ""
         # output files
@@ -54,7 +56,7 @@ class MontageSession(object):
         """
         configures key names for data model that can vary among different input files
         @param name: the standard internal name for this key, e.g. ParentGroupIndex or ParentObjectNumber
-        @param value: the actual name used in the input file
+        @param value: the name of the corresponding column in the input file
         """
         self.keyname[name] = value
 
@@ -85,6 +87,14 @@ class MontageSession(object):
         """
         p = k.partition("-")
         return float(p[0]) + float(p[2]) / 10000
+
+    def firstFrame(self):
+        """
+        get a string representing the first frame in the series
+        @return: a string for the min frame among all the object keys
+        """
+        ff_int = min([int(k.partition("-")[0]) for k in self.objectDictionary.keys()])
+        return str(ff_int)
 
     def lastFrame(self):
         """
@@ -154,16 +164,17 @@ class MontageSession(object):
         """
         new_ms_object = cls()
         inFile = open(filename, 'rb')
-        new_ms_object = pickle.load(inFile)
-        # cls.notify("done loading.")
-        new_ms_object.identifySpecialNodes()
-        #parentChildCompleteness()
-        new_ms_object.notify("Adding descendants to roots")
-        for rootKey in new_ms_object.rootKeyList:
-            new_ms_object.updateDescentBranch(rootKey)
-        new_ms_object.notify("Adding descendants to branches")
-        for branchKey in new_ms_object.branchKeyList:
-            new_ms_object.updateDescentBranch(branchKey)
+        if inFile != '':
+            new_ms_object = pickle.load(inFile)
+            # cls.notify("done loading.")
+            new_ms_object.identifySpecialNodes()
+            #parentChildCompleteness()
+            new_ms_object.notify("Adding descendants to roots")
+            for rootKey in new_ms_object.rootKeyList:
+                new_ms_object.updateDescentBranch(rootKey)
+            new_ms_object.notify("Adding descendants to branches")
+            for branchKey in new_ms_object.branchKeyList:
+                new_ms_object.updateDescentBranch(branchKey)
         return new_ms_object
 
     @staticmethod
@@ -209,11 +220,19 @@ class MontageSession(object):
     #          objectDictionary[objectKey] = item
     #      self.identifySpecialNodes()
 
-    def imageDictionaryFromCsv(self):  # THIS IS USED IN setup() ***
+    def imageDictionaryFromCsv(self, imageCsvFilename):  # THIS IS USED IN setup() ***
         """
-        read database of images, from file listed in self.imageCsvFilename (CellProfiler image data file)
+        read a database of images, from file listed in self.imageCsvFilename (CellProfiler image data file)
+        the key for imageDictionary is the image number, i.e. the nth file in the file list
+        each item in imageDictionary requires these fields:
+            objectKeys:
+                a list of keys in objectDictionary, indicating all the objects in this particular image
+            a frame indicator, which is stored in self.keyname['FrameIndex']:
+                this stores the time step number associated with this image; e.g. image #2 may hold time step #5 if
+                there are missing image files for time steps #2, #3 & #4.
         """
-        imageCsvFile = open(self.imageCsvFilename, 'rU')
+        # imageCsvFile = open(self.imageCsvFilename, 'rU')
+        imageCsvFile = open(imageCsvFilename, 'rU')
         imageDataReader = csv.DictReader(imageCsvFile)
         imageDataList = list(imageDataReader)
         #filenameList = [ item['FileName_subtracted'] for item in imageDataList]
@@ -222,14 +241,18 @@ class MontageSession(object):
             imageNumber = int(item['ImageNumber'])
             item['objectKeys'] = []
             #imageDictionary[frameNumber] = item
-            self.imageDictionary[imageNumber] = item
+            # self.imageDictionary[imageNumber] = item
+            # store item in imageDictionary, keeping only needed fields
+            self.imageDictionary[imageNumber] = {k: item[k] for k in ['objectKeys', self.keyname['FrameIndex']]}
 
-    def objectDictionaryFromCsv(self):   # THIS IS USED IN setup() ***
+    def objectDictionaryFromCsv(self, objectCsvFilename):   # THIS IS USED IN setup() ***
         """
-        read database of objects, from file listed in self.objectCsvFilename (CellProfiler object data file)
+        read database of objects, from file listed in self.objectCsvFilename (CellProfiler object data file) OR
+        a csv file exported by Traxtile
         """
         self.objectDictionary.clear()
-        objectCsvFile = open(self.objectCsvFilename, 'rU')
+        # objectCsvFile = open(self.objectCsvFilename, 'rU')
+        objectCsvFile = open(objectCsvFilename, 'rU')
         objectDataReader = csv.DictReader(objectCsvFile)
         objectDataList = list(objectDataReader)
         # build the object dictionary - a dictionary of dictionaries
@@ -288,7 +311,7 @@ class MontageSession(object):
     def parentChildCompleteness(self):
         """
         check that all parent-child relationships are reciprocal
-        @return: TRUE if all relationships OK, FALSE if there are non-reciprocal links
+        @return: TRUE if all relationships are OK, or FALSE if there are non-reciprocal links
         """
         self.notify("check parent/child completeness")
         errorList = []
@@ -362,10 +385,15 @@ class MontageSession(object):
         @param parentKey: key for the object of interest
         @return: TRUE if any gaps > 1 frame
         """
-        return len([g for g in self.gapList(parentKey) if g > 1]) > 0  #TODO:  test or discard hasGap()
+        return len([g for g in self.gapList(parentKey) if g > 1]) > 0  # TODO:  test or discard hasGap()
 
     @staticmethod
     def flatten(lofl):
+        """
+        flatten a list of lists
+        @param lofl: list of lists
+        @return: a simple list with all the elements in lofl, and no nested lists
+        """
         return [val for sublist in lofl for val in sublist]
 
     def gapSummary(self):
@@ -384,12 +412,27 @@ class MontageSession(object):
         return "Gaps:\n" + self.formatTable([[" ", "size", "No."]] + [["", str(a), str(b)] for (a, b) in gaps.items()])
 
     def hasKey(self, queryKey):
+        """
+        check to see if a given key is valid for this data model
+        @param queryKey: the key to be validated
+        @return: TRUE if the object dictionary includes this key, otherwise FALSE
+        """
         return queryKey in self.objectDictionary
 
     def cellForKey(self, targetKey):
+        """
+        return the cell data for a given object key
+        @param targetKey: the key for the object
+        @return: a dictionary holding data for the indicated object
+        """
         return self.objectDictionary[targetKey]  # TODO: check for key validity in Tm.cellForKey
 
     def setCellForKey(self, newKey, newCell):
+        """
+        replace all the  data for the object identified by the given key
+        @param newKey: the key in the object dictionary
+        @param newCell: a dictionary containing the new object data
+        """
         self.objectDictionary[newKey] = newCell
 
     def updateCellForKey(self, targetKey, attributeName, value):
@@ -406,30 +449,33 @@ class MontageSession(object):
         childList = [self.cellForKey(ck) for ck in parent['ChildKeys']]
         return childList
 
-    def panelImageFilenameForIndex(self, i):  # TODO: less hard coding of image filenames
+    def panelImageFilenameForIndex(self, i):
+        # TODO: less hard coding of image filenames...zfill(4) requires exactly 4 digits
         # TODO: consider eliminating imageDictionary altogether, if filenames can be in objectDictionary
         imgData = self.imageDictionary[i]
         #imageNumber = imgData['ImageNumber']
-        fileNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
-        imgFilename = "{0}/{1}{2}{3}{4}".format(self.panelImageDir, self.panelImgFilenameBase, str(fileNumber).zfill(4),
+        timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']  # get time number
+        imgFilename = "{0}/{1}{2}{3}{4}".format(self.panelImageDir, self.panelImgFilenameBase, str(timeNumber).zfill(4),
                                                 self.panelImgFilenamePost, self.panelImgExt)
         return imgFilename
 
     def panelImageFilenameForKey(self, targetKey):
         target = self.objectDictionary[targetKey]
-        targetImageNumber = int(target['ImageNumber'])
-        return self.panelImageFilenameForIndex(targetImageNumber)
+        targetImageNumber = int(target['ImageNumber'])  # get image number from objectDictionary
+        return self.panelImageFilenameForIndex(targetImageNumber)  # look up & return file name for that image number
 
     def wholeImageFileList(self):
         pass
-        filename_template = self.wholeImageDir + "/" + self.imgFileNameBase + "*" + self.wholeImgFilenamePost + self.wholeImgExt
+        filename_template = "{0}/{1}*{2}{3}".format(self.wholeImageDir, self.wholeImgFileNameBase,
+                                                    self.wholeImgFilenamePost, self.wholeImgExt)
         return [os.path.abspath(x) for x in glob.glob(filename_template)]
 
-    def wholeImageFilenameForIndex(self, i):  # TODO: less hard coding of image filenames
+    def wholeImageFilenameForIndex(self, i):  # note - file for whole image may differ from montage panels
+        # TODO: less hard coding of image filenames
         imgData = self.imageDictionary[i]
         #imageNumber = imgData['ImageNumber']
-        fileNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
-        imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir, self.imgFileNameBase, str(fileNumber).zfill(4),
+        timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
+        imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir, self.wholeImgFileNameBase, str(timeNumber).zfill(4),
                                                 self.wholeImgFilenamePost, self.wholeImgExt)
         return os.path.abspath(imgFilename)
 
@@ -827,13 +873,13 @@ class MontageSession(object):
                         for childKey in childKeys:
                             self.branchKeyList.remove(childKey)
 
-    def pruneShortBranches(self):
+    def pruneShortBranches(self, min_branch_length):
         # remove very short branches from apparent splits - these are likely artifacts
-        MIN_BRANCH_LENGTH = 2  # remove branches less than this length
+        # min_branch_length = 2  # remove branches less than this length
         # NOTE - this could cause a problem if there is just a gap; actual length>apparent length
         for tipKey in self.tipKeyList:
             tip = self.objectDictionary[tipKey]
-            if tip['BranchLength'] < MIN_BRANCH_LENGTH:
+            if tip['BranchLength'] < min_branch_length:
                 # note - ancestor is the top of the branch, ie product of split or a root
                 # if is a single frame then tip = ancestor = split product
                 ancestorKey = tip['AncestorKey']
@@ -1072,12 +1118,38 @@ class MontageSession(object):
             retval += "\tpopulation half-life: %f frames" % (math.log(0.5) / a)
         return retval
 
-    def setup(self):
+    def setup_from_cp_csv(self, config_data):
+        self.set_keyname('FrameIndex', config_data['FrameIndex'])
+        self.set_keyname('ParentGroupIndex', config_data['ParentGroupIndex'])
+        self.set_keyname('ParentObjectNumber', config_data['ParentObjectNumber'])
+
         self.notify("read image data")
-        self.imageDictionaryFromCsv()
+        self.imageDictionaryFromCsv(config_data['imageCsvFile'])
 
         self.notify("read object data")
-        self.objectDictionaryFromCsv()
+        self.objectDictionaryFromCsv(config_data['objectCsvFile'])
+
+    def setup_from_icy(self, config_data):  # TODO: well, yeah
+        imp = Trax_io_icy.icy_import(config_data['spot_csv'], config_data['track_xml'], config_data['image_dir'])
+        self.imageDictionary = imp['imageDictionary']
+        self.objectDictionary = imp['objectDictionary']
+        self.set_keyname('FrameIndex', imp['keyname_frameIndex'])
+
+    def setup_from_trackmate(self, config_data):  # TODO: well, yeah
+        imp = Trax_io_trackmate.trackmate_import(config_data['trackmate_xml'], config_data['image_dir'])
+        self.imageDictionary = imp['imageDictionary']
+        self.objectDictionary = imp['objectDictionary']
+        self.set_keyname('FrameIndex', imp['keyname_frameIndex'])
+
+    def setup(self, import_config):
+        if import_config.import_type == 'CellProfiler':
+            self.setup_from_cp_csv(import_config.data)
+        elif import_config.import_type == 'Icy':
+            print(import_config.data)
+            self.setup_from_icy(import_config.data)
+        elif import_config.import_type == 'Trackmate':
+            print(import_config.data)
+            self.setup_from_trackmate(import_config.data)
 
         # self.notify("assign children")
         # self.assignChildren()
@@ -1118,7 +1190,7 @@ class MontageSession(object):
             self.updateDescentBranch(branchKey)
 
         self.notify("pruning short branches")
-        self.pruneShortBranches()
+        self.pruneShortBranches(2)  # prune branches of length < 2
 
         self.notify("build new trees")
         self.buildTrees()

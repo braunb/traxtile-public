@@ -17,8 +17,8 @@ import ttk
 class ImageViewer(Toplevel):
     def __init__(self, imgFileList):
         Toplevel.__init__(self)
-        self.imgFileList = imgFileList
-        self.imgIndex = 0
+        self.imgFileList = imgFileList  # a list of file names, one for each image in the series
+        self.imgIndex = 0  # a numeric index indicating the current image in the list (self.imgFileList)
         self.highlightBox = (0, 0, 0, 0)
         self.currentFile = ""
         self.frame = Frame(self,  bg="red")

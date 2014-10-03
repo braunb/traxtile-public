@@ -104,7 +104,7 @@ class Trackapp():
         ttm.panelImageDir = "/Users/bbraun/Box Documents/montage/130530/gif"
         ttm.wholeImageDir = "/Users/bbraun/Box Documents/montage/130530/gif"
         ttm.panelImgFilenameBase = "subtracted_2x_s1_t"  # used for montage panels; may be the same or different
-        ttm.imgFileNameBase = "subtracted_2x_s1_t"  # used for whole image viewer
+        ttm.wholeImgFileNameBase = "subtracted_2x_s1_t"  # used for whole image viewer
         ttm.panelImgExt = ".gif"
         ttm.wholeImgExt = ".gif"
 
@@ -131,7 +131,7 @@ class Trackapp():
         # tm.panelImageDir = ""
         # tm.imageCsvFilename = "C09_LAP_OUT_Image.csv"
         # tm.objectCsvFilename = "C09_LAP_OUT_FilteredCells.csv"
-        # tm.imgFileNameBase = "clc120504-001004_c09 mut d +gm wh_t"
+        # tm.wholeImgFileNameBase = "clc120504-001004_c09 mut d +gm wh_t"
         # tm.panelImgFilenameBase = "clc120504-001004_c09 mut d +gm wh_t"
         # # output files
         # tm.objectOutputFilename = "C09_new_cells.csv"
@@ -205,8 +205,10 @@ class Trackapp():
     def buildReviewKeyList(self):
         # start with all splits & merges
         self.reviewKeyList = self.tm.splitKeyList + self.tm.mergeKeyList
-        # add roots not in frame 1
-        self.reviewKeyList += [k for k in self.tm.rootKeyList if k.partition("-")[0] != "1"]
+        # add roots not in first frame
+        # self.reviewKeyList += [k for k in self.tm.rootKeyList if k.partition("-")[0] != "1"]
+        firstFrameString = self.tm.firstFrame()
+        self.reviewKeyList += [k for k in self.tm.rootKeyList if k.partition("-")[0] != firstFrameString]
         # add tips not in last frame
         lastFrameString = self.tm.lastFrame()
         reviewTipKeyList = [k for k in self.tm.tipKeyList if k.partition("-")[0] != lastFrameString]  # last frame
@@ -431,7 +433,7 @@ if __name__ == "__main__":
 
     def file_import(event=None):
         print 'import'
-        newModel = MontageFile.importTrackmodel(trackapp)  # this actually sets the new model
+        newModel = MontageFile.importTrackmodel(trackapp)  # this actually sets the new model in trackapp
         print "new model:", newModel  # goes here right away; does not block on dialog
         if newModel is not None:
             pass
