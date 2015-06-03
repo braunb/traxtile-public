@@ -64,7 +64,7 @@ def icy_import(spot_csv_filename, track_xml_filename, icy_tiff_image_dir):
         # add placeholders for required fields
         item['ParentKeys'] = []
         item['ChildKeys'] = []
-        item['ImageNumber'] = item['t']
+        item['ImageNumber'] = str(item['t'])
         item['ChildCount'] = 0  # len(item['ChildKeys'])
         item['ParentCount'] = 0  # len(item['ParentKeys'])
         item['DescendantKey'] = ''
@@ -183,7 +183,7 @@ def icy_import(spot_csv_filename, track_xml_filename, icy_tiff_image_dir):
             objectDictionary[parent_key]['ChildKeys'].append(child_key)
             objectDictionary[parent_key]['ChildCount'] += 1
     for key, obj in objectDictionary.iteritems():
-        print key, obj['ParentKeys'], obj['ChildKeys']
+        print key, "p:", obj['ParentKeys'], "c:", obj['ChildKeys']
 
     # create imageDictionary from TIFF file directory
     # icy_tiff_image_dir = '/Users/bbraun/Box Sync/montage/130530_sample_data/tiff'  # TODO: change to GIF dir
@@ -209,7 +209,7 @@ def icy_import(spot_csv_filename, track_xml_filename, icy_tiff_image_dir):
         parsed_file = parseFileName(f)
         imageNumber = file_list.index(f) + 1  # convert to 1-indexed
         item = dict()
-        item['time'] = str(int(parsed_file['num'])+1)  # str
+        item['time'] = str(int(parsed_file['num']))  # str
         item['objectKeys'] = [k for k, v in objectDictionary.iteritems() if int(v['ImageNumber']) == imageNumber]  # []
         imageDictionary[imageNumber] = item
     # self.keyname['FrameIndex'] = 'time'
