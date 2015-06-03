@@ -19,4 +19,3 @@ Trax_io_trackmate.py	Import Fiji/TrackMate data
 MontageView.py	        Module for main program interface
 Trackmodel.py	        Module for data model
 traxtile.py	            Main program
-
