@@ -46,7 +46,7 @@ def trackmate_import(trackmate_xml_filename, image_dir):
             # add placeholders for required fields
             item['ParentKeys'] = []
             item['ChildKeys'] = []
-            item['ImageNumber'] = item['t']
+            item['ImageNumber'] = str(item['t'])
             item['ChildCount'] = 0  # len(item['ChildKeys'])
             item['ParentCount'] = 0  # len(item['ParentKeys'])
             item['DescendantKey'] = ''
@@ -95,15 +95,15 @@ def trackmate_import(trackmate_xml_filename, image_dir):
 
     # create imageDictionary from GIF file directory
     # icy_tiff_image_dir = '/Users/bbraun/Box Sync/montage/130530_sample_data/tiff'  # TODO: change to GIF dir
-    icy_gif_image_dir = image_dir  # TODO: change the parameter name instead of this hack
-    filename_template = "{0}/*.gif".format(icy_gif_image_dir)
+    gif_image_dir = image_dir  # TODO: change the parameter name instead of this hack
+    filename_template = "{0}/*.gif".format(gif_image_dir)
     file_list = [os.path.abspath(x) for x in glob.glob(filename_template)]
     imageDictionary = dict()
     for f in file_list:
         parsed_file = parseFileName(f)
         imageNumber = file_list.index(f) + 1  # convert to 1-indexed
         item = dict()
-        item['time'] = str(int(parsed_file['num'])+1)  # str
+        item['time'] = str(int(parsed_file['num']))  # str # the time number included in the file name
         item['objectKeys'] = [k for k, v in objectDictionary.iteritems() if int(v['ImageNumber']) == imageNumber]  # []
         imageDictionary[imageNumber] = item
 

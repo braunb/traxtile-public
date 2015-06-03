@@ -148,6 +148,9 @@ class MontageController(object):
             self.mgc.deleteCell(delKey)  # delete it from the grid view
             self.selectCell(selectKey)
 
+    def addCell(self, new_frame, new_x, new_y):
+        self.tm.addCell(new_frame, new_x, new_y)
+
     def unlinkParentClick(self):
         cKey = self.current_selection
         parent_selection = self.mv.listboxParents.curselection()
@@ -333,7 +336,19 @@ class MontageGridController(object):  # interacts with model on behalf of view
     def makeMontage(self, objKey):
         """create a 'montage' data structure for the cell having the specified key
             a montage is a list of panels
-            a panel is a dictionary of: image filename, cropping info, & list of cell locations in the cropped image"""
+            a panel is a dictionary of: image filename, cropping info, & list of cell locations in the cropped image
+                'targetKey': the key of the cell at the focus of the montage (same for all panels)
+                'frame': the index of the image for this panel in the whole series (frame number)
+                'imgFile': filename for the image used in this panel
+                'cx': x coordinate in image for center of panel
+                'cy': y coordinate in image for center of panel
+                'w': half-width of panel, in pixels
+                'h': half-height of panel, in pixels
+                'spots': a list of spots which indicate cells to be circled in this panel (i.e. linked to selected cell)
+                'labels': the list of cell labels that appear in this panel
+            Note that the number of panels in a montage, specified by 2*margin+1, is currently hard coded with margin=10
+            and panel size is hard coded with w = h = 40 pixels
+        """
         # mytimes = []
         # self.prof(mytimes, 'start')
 
@@ -396,6 +411,13 @@ class MontageGridController(object):  # interacts with model on behalf of view
         # easiest (and fast enough) to update display by redrawing all the labels
         self.mgv.placeLabels()
 
+    def addCell(self, clicked_frame, new_x, new_y):
+        self.mc.addCell(clicked_frame, new_x, new_y)
+        # m = self.makeMontage(self.montage[0]['targetKey'])
+        m = self.mc.trackapp.fetchMontageForKey(self.montage[0]['targetKey'])
+        self.setMontage(m)  # redraw
+        pass
+
     def linkClick(self, linkTarget):
         self.mc.linkClick(linkTarget)
 
@@ -410,12 +432,14 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
         self.imgCache = LimitedSizeDict(size_limit=self.imgCacheSize)
         self.configure(width=1200, height=510)
         self.spotRadius = 10
-        self.labelColor = "red"
-        self.spotColor = "blue"
+        self.labelColor = "green2"  # "red"
+        self.labelBackground = "black"  # "red"
+        self.selectedLabelColor = "yellow"  # "red"
+        self.spotColor = "cyan"  # "blue"
         self.padx = 10
         self.pady = self.padx
         self.maxStripWidth = 1200
-        self.zoomFactor = 2  # integer only
+        self.zoomFactor = 2  # integer only; number of screen pixels for each original image pixel
         self.bind("<ButtonRelease-1>", self.montageClick)
         self.selectedKey = ''
 
@@ -427,7 +451,9 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
         # from http://tkinter.unpythonic.net/wiki/PhotoImage
 
     def getImage(self, filename):
-        """create a Photo image object or retrieve it from the cache"""
+        """
+        create a Photo image object or retrieve it from the cache
+        """
         if filename in self.imgCache.keys():
             imgobj = self.imgCache[filename]
         else:
@@ -436,6 +462,9 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
         return imgobj
 
     def placeImages(self):
+        """
+        display the cropped images for each panel in the current montage
+        """
         # remove old images and image numbers using canvas tags
         self.delete("panelImage")
         self.delete("frameNumber")
@@ -443,16 +472,23 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
         self.selectedKey = ''
         padx = self.padx
         pady = self.pady
-        panelx = padx
-        panely = pady
+        panelx = padx  # coordinates for placement of the top left corner of the panel
+        panely = pady  # in the window
         zoomFactor = self.zoomFactor
         for panel in self.montage:
-            # print panel
+            # calculate cropping coordinates
             imgobj = self.getImage(panel['imgFile'])
-            left = max(panel['cx'] - panel['w'], 0)
-            right = min(left + panel['w']*2, imgobj.width())
-            top = max(panel['cy'] - panel['h'], 0)
-            bottom = min(top + panel['h']*2, imgobj.height())
+            left = panel['cx'] - panel['w']
+            right = left + panel['w']*2
+            top = panel['cy'] - panel['h']
+            bottom = top + panel['h']*2
+
+            # adjust cropping coordinates to image boundaries if needed
+            left = max(left, 0)
+            right = min(right, imgobj.width())
+            top = max(top, 0)
+            bottom = min(bottom, imgobj.height())
+
             subimgobj = self.subimage(imgobj, left, top, right, bottom)
             subimgobj = subimgobj.zoom(zoomFactor)
             image = self.create_image(panelx, panely, image=subimgobj, anchor="nw", tag="panelImage")
@@ -473,9 +509,17 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
                 panely = self.bbox(image)[3] + pady
 
     def placeLabels(self):
-        # print "placeLabels"
+        """
+        show labels for every cell in each panel of the current montage
+        """
+        # remove labels using canvas tags
         self.delete("cellNumber")
         labelColor = self.labelColor
+
+        # import random
+        # r = lambda: random.randint(0,255)
+        # labelColor = '#%02X%02X%02X' % (r(),r(),r())
+
         zoomFactor = self.zoomFactor
         # padx = self.padx
         r = self.spotRadius
@@ -485,8 +529,8 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
             # image  = panel['canvasImage']
             #panelWidth  = self.bbox(image)[2] - self.bbox(image)[0]
             #panelHeight = self.bbox(image)[3] - self.bbox(image)[1]
-            panelOffsetX = panel['cx'] - panel['w']
-            panelOffsetY = panel['cy'] - panel['h']
+            panelOffsetX = max(panel['cx'] - panel['w'], 0)
+            panelOffsetY = max(panel['cy'] - panel['h'], 0)
             # add cell labels
             for labelItem in panel['labels']:
                 #print labelItem
@@ -496,13 +540,20 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
                 cellOffsetY = zoomFactor*(cellY - panelOffsetY)
                 labelX = panelx + cellOffsetX
                 labelY = panely + cellOffsetY
-                bgoval = self.create_oval(labelX-r+4, labelY-r+4, labelX+r-4, labelY+r-4, fill="black", width=2, tag="cellNumber")
-                self.create_text(panelx+cellOffsetX, panely+cellOffsetY, text=labelItem['label'], fill=labelColor, activefill="blue", anchor='center', tags=(labelItem['key'], "cellNumber"))
+                if self.labelBackground is not 'none':
+                    bgoval = self.create_oval(labelX-r+4, labelY-r+4,
+                                              labelX+r-4, labelY+r-4,
+                                              fill=self.labelBackground, width=2, tag="cellNumber")
+                self.create_text(panelx+cellOffsetX, panely+cellOffsetY, text=labelItem['label'],
+                                 fill=labelColor, activefill="blue", anchor='center',
+                                 tags=(labelItem['key'], "cellNumber"))
         self.update_idletasks()
 
-    def placeSpots(self):  # highlight any cells in lineage of selected cell with spots (i.e. circles) & lines
-        # spot locations have already been calculated in mgc.calcSpotsForCell()
-        # print "placeSpots"
+    def placeSpots(self):
+        """
+        highlight any cells in lineage of selected cell with spots (i.e. circles) & lines
+        spot locations have already been calculated in mgc.calcSpotsForCell()
+        """
         # remove old spots & lines using canvas tags
         self.delete('spot')
         self.delete('line')
@@ -518,8 +569,8 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
             image = panel['canvasImage']
             panelWidth = self.bbox(image)[2] - self.bbox(image)[0]
             panelHeight = self.bbox(image)[3] - self.bbox(image)[1]
-            panelOffsetX = panel['cx'] - panel['w']
-            panelOffsetY = panel['cy'] - panel['h']
+            panelOffsetX = max(panel['cx'] - panel['w'], 0)
+            panelOffsetY = max(panel['cy'] - panel['h'], 0)
             for spot in panel['spots']:
                 spotX = panelx + zoomFactor*(spot['x'] - panelOffsetX)
                 spotY = panely + zoomFactor*(spot['y'] - panelOffsetY)
@@ -562,22 +613,45 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
 
     def montageClick(self, event):
         # print "state", format(event.state, '08x'), bin(event.state)
-        if "Windows" in platform.system():
-            linkMode = (event.state & 0x20000) > 0  # this seems to be required in Win 7 for Alt key state
-        else:
-            linkMode = (event.state & 0x008) > 0
-            # http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/event-handlers.html
         canvas = event.widget
         x = canvas.canvasx(event.x)
         y = canvas.canvasy(event.y)
-        item = canvas.find_closest(x, y)
-        selectedTag = canvas.gettags(item)[0]
-        if selectedTag != 'panelImage' and selectedTag != 'frameNumber':
-            if linkMode:
-                self.mgc.linkClick(selectedTag)
+        newMode = (event.state & 0x0004) > 0  # check for Ctl-click
+        if newMode:
+            print "ctl-click"
+            items = canvas.find_overlapping(x-1, y-1, x+1, y+1)
+            print items
+            for item in items:
+                tags = canvas.gettags(item)
+                if 'panelImage' in tags:
+                    # bbx = canvas.bbox(item)
+                    panel_coords = canvas.coords(item)
+                    clicked_panels = [p for p in self.montage if p['panelx'] == panel_coords[0] and
+                                                                 p['panely'] == panel_coords[1]]
+                    clicked_panel = clicked_panels[0]
+                    # TODO: move some of this stuff into the controller
+                    clicked_frame = clicked_panel['frame']
+                    # clicked_file = clicked_panel
+                    dx = x - clicked_panel['panelx']  # distance from left edge in canvas coord
+                    dy = y - clicked_panel['panely']
+                    new_x = max(clicked_panel['cx'] - clicked_panel['w'], 0) + dx/self.zoomFactor
+                    new_y = max(clicked_panel['cy'] - clicked_panel['w'], 0) + dy/self.zoomFactor
+                    self.mgc.addCell(clicked_frame, new_x, new_y)
+            pass
+        else:
+            if "Windows" in platform.system():
+                linkMode = (event.state & 0x20000) > 0  # this seems to be required in Win 7 for Alt key state
             else:
-                print selectedTag, " selected"
-                self.mgc.selectCell(selectedTag)
+                linkMode = (event.state & 0x008) > 0
+                # http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/event-handlers.html
+            item = canvas.find_closest(x, y)
+            selectedTag = canvas.gettags(item)[0]
+            if selectedTag != 'panelImage' and selectedTag != 'frameNumber':
+                if linkMode:
+                    self.mgc.linkClick(selectedTag)
+                else:
+                    print selectedTag, " selected"
+                    self.mgc.selectCell(selectedTag)
 
     def updateSpots(self, selectedKey):
         self.mgc.calcSpotsForCell(selectedKey)  # redefine spot list of each panel
@@ -586,14 +660,14 @@ class MontageGridView(Canvas):  # a canvas for the grid of panels in the montage
     def showSelection(self, selectedKey):
         #print "select", selectedKey
         selectedLabelItem = self.find_withtag(selectedKey)
-        self.itemconfig(selectedLabelItem, fill="green")
+        self.itemconfig(selectedLabelItem, fill=self.selectedLabelColor)
         if selectedKey != self.selectedKey:
             self.selectedKey = selectedKey
             self.updateSpots(selectedKey)
 
     def deselect(self, deselectKey):
         deselectedLabelItem = self.find_withtag(deselectKey)
-        self.itemconfig(deselectedLabelItem, fill="red")
+        self.itemconfig(deselectedLabelItem, fill=self.labelColor)
 
     def deselectAll(self):
         #self.selectedKey = ''

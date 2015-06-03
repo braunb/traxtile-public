@@ -7,6 +7,7 @@ import itertools                   # required for list flattening
 import re                          # regex
 import Trax_io_icy              # Icy file import
 import Trax_io_trackmate
+import Trax_io_isbi
 # import time
 
 try:
@@ -264,8 +265,12 @@ class MontageSession(object):
             item = {k: v for k, v in rawItem.iteritems() if k in keptKeys}  # keep only needed fields to conserve memory
             objectKey = item['ImageNumber'] + "-" + item['ObjectNumber']
             # get numeric values for cell location
-            item['cellX'] = int(float(item['Location_Center_X']))
-            item['cellY'] = int(float(item['Location_Center_Y']))
+            # item['cellX'] = int(float(item['Location_Center_X']))
+            # item['cellY'] = int(float(item['Location_Center_Y']))
+            item['x'] = float(item['Location_Center_X'])
+            item['y'] = float(item['Location_Center_Y'])
+            item['cellX'] = int(item['x'])
+            item['cellY'] = int(item['y'])
             # initialize extra fields with placeholder values
             if 'ChildKeys' in rawItem:
                 item['ChildKeys'] = re.findall("\d+-\d+", rawItem['ChildKeys'])
@@ -427,6 +432,10 @@ class MontageSession(object):
         """
         return self.objectDictionary[targetKey]  # TODO: check for key validity in Tm.cellForKey
 
+    def cellsForFrame(self, targetFrame):
+        # return [c for c in self.objectDictionary if c['ImageNumber'] == str(targetFrame)]
+        return {k: v for k, v in self.objectDictionary.iteritems() if v['ImageNumber'] == str(targetFrame)}
+
     def setCellForKey(self, newKey, newCell):
         """
         replace all the  data for the object identified by the given key
@@ -457,7 +466,7 @@ class MontageSession(object):
         timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']  # get time number
         imgFilename = "{0}/{1}{2}{3}{4}".format(self.panelImageDir, self.panelImgFilenameBase, str(timeNumber).zfill(4),
                                                 self.panelImgFilenamePost, self.panelImgExt)
-        return imgFilename
+        return imgFilename  # TODO: fails if timenumber != file number,eg 0-index vs 1-index, image #1 = xxx_t0000.gif
 
     def panelImageFilenameForKey(self, targetKey):
         target = self.objectDictionary[targetKey]
@@ -558,17 +567,17 @@ class MontageSession(object):
         return sorted(self.tipSetForCell(targetKey), key=lambda k: self.keySorter(k))
 
     # procedure to update objects with ancestors, descendants & branch lengths
-    def updateDescentBranch(self, targetKey):
-        # find the appropriate root for the target key
+    def updateDescentBranch(self, targetKey):  # TODO: refactor to use method 'descendantForCell?'??
+        # find the appropriate ancestor for the target key
         ancestorKey = self.ancestorForCell(targetKey)
         descendantKey = ''
-        root = self.objectDictionary[ancestorKey]
-        obj = root
-        #print rootKey, "->", root['ChildKeys'], "(",root['ChildCount'],")"
-        if root['ChildCount'] == 1:  # >0??? hard to handle split->split->split
+        ancestor = self.objectDictionary[ancestorKey]
+        obj = ancestor
+        #print rootKey, "->", ancestor['ChildKeys'], "(",ancestor['ChildCount'],")"
+        if ancestor['ChildCount'] == 1:  # >0??? hard to handle split->split->split
             # walk down the tree of descent as long as there are no branches (ChildCount > 1) or tips (ChildCount=0)
             while obj['ChildCount'] == 1:
-                obj['AncestorKey'] = ancestorKey # let every cell point to the top of its branch
+                obj['AncestorKey'] = ancestorKey  # let every cell point to the top of its branch
                 if obj['ChildKeys'][0] in self.objectDictionary:
                     descendantKey = obj['ChildKeys'][0]
                     descendant = self.objectDictionary[descendantKey]
@@ -579,27 +588,26 @@ class MontageSession(object):
                     obj['ChildCount'] = len(obj['ChildKeys'])
                 # now update database with branch length info
             # note - according to Newick format, branch length belongs with descendant (i.e. distance from parent)
-            root['DescendantKey'] = descendantKey
+            ancestor['DescendantKey'] = descendantKey
             descendant['AncestorKey'] = ancestorKey
-            branchLength = int(descendant['ImageNumber']) - int(root['ImageNumber']) + 1
+            branchLength = int(descendant['ImageNumber']) - int(ancestor['ImageNumber']) + 1
             descendant['BranchLength'] = branchLength
-            #print "From %s to %s: %s to %s (%s)" %(ancestorKey, descendantKey, root['ImageNumber'], descendant['ImageNumber'], branchLength)
+            #print "From %s to %s: %s to %s (%s)" %(ancestorKey, descendantKey, ancestor['ImageNumber'], descendant['ImageNumber'], branchLength)
         else:
-            #print "From %s: %s children" %(ancestorKey, root['ChildCount'])
-            root['BranchLength'] = 1
-            root['DescendantKey'] = ancestorKey
-            root['AncestorKey'] = ancestorKey
-
+            #print "From %s: %s children" %(ancestorKey, ancestor['ChildCount'])
+            ancestor['BranchLength'] = 1
+            ancestor['DescendantKey'] = ancestorKey
+            ancestor['AncestorKey'] = ancestorKey
     #	retval = {'branchLength':branchLength, 'DescendantKey':descendantKey}
 
     def identifySpecialNodes(self):
         #identify special nodes
         # empty current lists
-        self.rootKeyList = []    # a node that starts a lineage
-        self.splitKeyList = []   # a node that splits
+        self.rootKeyList = []    # a node that starts a lineage; i.e., no parents
+        self.splitKeyList = []   # a node that splits; i.e. >1 child
         self.branchKeyList = []  # a node at the top of a branch (branch point); i.e. produced by a split
-        self.mergeKeyList = []   # a node that is produced by a merge
-        self.tipKeyList = []     # a branch tip
+        self.mergeKeyList = []   # a node that is produced by a merge; i.e. >1 parent
+        self.tipKeyList = []     # a branch tip; i.e. no children
         # now fill them by going through each key one at a time
         # sortedObjectKeys = sorted(self.objectDictionary.keys(), key=lambda k: self.keySorter(k))
         # self.rootKeyList = [k for k in sortedObjectKeys if self.objectDictionary[k]['ParentCount'] == 0]
@@ -642,6 +650,12 @@ class MontageSession(object):
 
     # utilities for making & breaking parent/child links between cells in different frames
     def linked(self, key1, key2):
+        """
+        test if two cells are directly linked in a track
+        @param key1: key for cell #1
+        @param key2: key for cell #2
+        @return: TRUE if either cell is a parent of the other; FALSE otherwise
+        """
         retval = False
         pKey = min(key1, key2, key=self.keySorter)
         cKey = key2 if pKey == key1 else key1
@@ -652,6 +666,11 @@ class MontageSession(object):
         return retval
 
     def unlinkCells(self, aKey, bKey):
+        """
+        remove a parent/child link, and maintain integrity of special key lists
+        @param aKey: key for cell #1 in link
+        @param bKey: key for cell #2 in link
+        """
         if self.hasKey(aKey) and self.hasKey(bKey):
             parentKey = aKey
             childKey = bKey
@@ -693,15 +712,22 @@ class MontageSession(object):
         else:
             print "unable to unlink; bad key"
 
-    def linkCells(self, aKey, bKey):
-        print "link", aKey, "to", bKey
+    def linkCells(self, parentKey, childKey):
+        # print "link", aKey, "to", bKey
+        """
+        create a link between two cells
+        @param parentKey: key for new parent
+        @param childKey: key for new child
+        @return: TRUE if successful; FALSE if bad keys
+        """
         try:
-            parentKey = aKey
-            childKey = bKey
+            # parentKey = aKey
+            # childKey = bKey
             parent = self.objectDictionary[parentKey]
             child = self.objectDictionary[childKey]
             if int(parent['ImageNumber']) > int(child['ImageNumber']):  # swap parent & child if frames are reversed
-                parentKey, childKey = bKey, aKey
+                # parentKey, childKey = bKey, aKey
+                parentKey, childKey = childKey, parentKey
                 parent, child = child, parent
             if int(parent['ImageNumber']) < int(child['ImageNumber']):
                 parent['ChildKeys'].append(childKey)
@@ -749,8 +775,44 @@ class MontageSession(object):
         if delKey in self.tipKeyList:    self.tipKeyList.remove(delKey)
         if delKey in self.deathList:     self.deathList.remove(delKey)
         if delKey in self.disappearList: self.disappearList.remove(delKey)
+        # TODO: remove from imageDictionary
+        self.imageDictionary[int(deleted['ImageNumber'])]['objectKeys'].remove(delKey)
         # remove from master object dictionary
         del self.objectDictionary[delKey]
+
+    def addCell(self, new_frame, new_x, new_y):
+        item = dict()
+        item['ImageNumber'] = str(new_frame)
+        cellsInFrame = self.cellsForFrame(item['ImageNumber'])
+        objectsInFrame = [int(c['ObjectNumber']) for c in cellsInFrame.values()]
+        objectsInFrame.append(0)  # if there are no cells, the list is empty
+        item['ObjectNumber'] = str(max(objectsInFrame) + 1)  # '99'  # TODO: FAILS IF NO OBJECTS IN FRAME: ADD 0
+        item[self.keyname['FrameIndex']] = ''
+        item[self.keyname['ParentGroupIndex']] = ''
+        item[self.keyname['ParentObjectNumber']] = ''
+        # 'Location_Center_X', 'Location_Center_Y'  # TODO: need these keys?
+        # get numeric values for cell location
+        # item['cellX'] = int(float(item['Location_Center_X']))
+        # item['cellY'] = int(float(item['Location_Center_Y']))
+        item['x'] = float(new_x)
+        item['y'] = float(new_y)
+        item['cellX'] = int(item['x'])
+        item['cellY'] = int(item['y'])
+        # initialize extra fields with placeholder values
+        item['ChildKeys'] = []
+        item['ParentKeys'] = []
+        item['ChildCount'] = 0
+        item['ParentCount'] = 0
+        item['DescendantKey'] = ''
+        item['BranchLength'] = 0
+        item['AncestorKey'] = ''
+        item['Death'] = False
+        item['Disappearance'] = False
+        # enter the item into object dictionary
+        objectKey = item['ImageNumber'] + "-" + item['ObjectNumber']
+        self.objectDictionary[objectKey] = item
+        # add reference to image data
+        self.imageDictionary[int(item['ImageNumber'])]['objectKeys'].append(objectKey)
 
     def lineageBelow(self, targetKey, downLimit):
         # return a set of keys for objects derived from a target, forward to a given image number
@@ -766,7 +828,7 @@ class MontageSession(object):
         # return a set of keys for objects in the ancestry of a target, back to a given image number
         lineageSet = set()
         if targetKey in self.objectDictionary:
-            target = self.objectDictionary[targetKey] # BUG! might have been deleted
+            target = self.objectDictionary[targetKey]  # TODO: BUG! might have been deleted
             lineageSet.add(targetKey)
             if target['ParentCount'] > 0 and int(target['ImageNumber']) > upLimit:
                 for parentKey in target['ParentKeys']:
@@ -1141,6 +1203,12 @@ class MontageSession(object):
         self.objectDictionary = imp['objectDictionary']
         self.set_keyname('FrameIndex', imp['keyname_frameIndex'])
 
+    def setup_from_isbi(self, config_data):
+        imp = Trax_io_isbi.isbi_import(config_data['isbi_xml'], config_data['image_dir'])
+        self.imageDictionary = imp['imageDictionary']
+        self.objectDictionary = imp['objectDictionary']
+        self.set_keyname('FrameIndex', imp['keyname_frameIndex'])
+
     def setup(self, import_config):
         if import_config.import_type == 'CellProfiler':
             self.setup_from_cp_csv(import_config.data)
@@ -1150,6 +1218,9 @@ class MontageSession(object):
         elif import_config.import_type == 'Trackmate':
             print(import_config.data)
             self.setup_from_trackmate(import_config.data)
+        elif import_config.import_type == "ISBI Challenge '12":
+            print(import_config.data)
+            self.setup_from_isbi(import_config.data)
 
         # self.notify("assign children")
         # self.assignChildren()

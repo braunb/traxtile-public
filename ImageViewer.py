@@ -27,7 +27,7 @@ class ImageViewer(Toplevel):
         self.xscrollbar.grid(row=1, column=0, sticky=E+W)
         self.yscrollbar = Scrollbar(self.frame)
         self.yscrollbar.grid(row=0, column=1, sticky=N+S)
-        self.canvas = Canvas(self.frame, width=550, height=550,  bg="blue", xscrollcommand=self.xscrollbar.set, yscrollcommand=self.yscrollbar.set)
+        self.canvas = Canvas(self.frame, width=550, height=550,  bg="gray", xscrollcommand=self.xscrollbar.set, yscrollcommand=self.yscrollbar.set)
         self.canvas.grid(column=0, row=0, sticky=N+S+E+W)
         self.xscrollbar.config(command=self.canvas.xview)
         self.yscrollbar.config(command=self.canvas.yview)

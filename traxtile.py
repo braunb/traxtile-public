@@ -7,6 +7,7 @@ import tkFileDialog
 import Trackmodel
 import MontageView
 import MontageFile
+import Trax_io_isbi
 import platform
 
 
@@ -247,6 +248,7 @@ class Trackapp():
 
     def removeKeyFromMontages(self, delKey):
         # remove label for deleted cell from all the panels of all the montages that have been created
+        # TODO: this really belongs in a GUI controller
         for montKey, mont in self.montageDictionary.items():
             # TODO: THIS DOES NOT ACCOUNT FOR FUTURE LISTS QUEUED BUT NOT YET MADE
             # however, the drawing routine could check to see if each key is valid before drawing the label
@@ -444,6 +446,11 @@ if __name__ == "__main__":
         exportFname = tkFileDialog.asksaveasfilename()
         trackapp.tm.saveObjectCsv(exportFname)
 
+    def file_export_isbi12(event=None):
+        print 'export isbi12'
+        # exportFname = tkFileDialog.asksaveasfilename()
+        Trax_io_isbi.isbi12_export(trackapp.tm)
+
     def recalc(event=None):
         if trackapp.tm is not None:
             trackapp.recalculateReviewKeyList()
@@ -496,6 +503,7 @@ if __name__ == "__main__":
     menu_file.add_command(label='Save...', command=file_save, accelerator=accel+"-S")
     root.bind('<'+accel+'-S>', file_save)
     menu_file.add_command(label='Export CSV...', command=file_export, accelerator=accel+"-E")
+    menu_file.add_command(label="Export ISBI '12...", command=file_export_isbi12)
     menu_file.add_command(label='Close', command=close, accelerator=accel+"-W")
     root.bind('<'+accel+'-w>', close)
 

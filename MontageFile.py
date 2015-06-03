@@ -78,6 +78,8 @@ def importTrackmodel(trackapp):
                 }
             elif self.import_config.import_type == 'Trackmate':
                 pass
+            elif self.import_config.import_type == "ISBI Challenge '12":
+                pass
             self.mfiv = MontageFileImportView(self)
             if "Darwin" in platform.system():
                 os.system('''/usr/bin/osascript -e 'tell app "Finder" to set frontmost of process "Python" to true' ''')
@@ -147,6 +149,14 @@ def importTrackmodel(trackapp):
             if fullname != '':
                 self.import_config.data['trackmate_xml'] = fullname
                 self.mfiv.update_trackmate_xml_file_text()
+
+        def isbi_xml_file_but_press(self):
+            fullname = tkFileDialog.askopenfilename(filetypes=[("xml", "*.xml"), ("All files", "*.*")],
+                                                    title="Open ISBI '12 XML File",
+                                                    parent=self.mfiv.root)
+            if fullname != '':
+                self.import_config.data['isbi_xml'] = fullname
+                self.mfiv.update_isbi_xml_file_text()
 
         @staticmethod
         def parseFileName(fullname):
@@ -256,12 +266,12 @@ def importTrackmodel(trackapp):
             # s.configure('My.TFrame', background='red')
 
             self.content = ttk.Frame(self.root, width=500, height=300, padding=[20, 20])  # , style='My.TFrame')
-            self.frm = ttk.Frame(self.content, width=500, height=300, relief='flat', borderwidth=2)  # , style='My.TFrame')
+            self.frm = ttk.Frame(self.content, width=500, height=300, relief='flat', borderwidth=2)#  , style='My.TFrame')
             self.frm.config()
             # self.frm.pack(expand=True, fill='both')
 
             self.import_type_var = StringVar()
-            import_types = ['CellProfiler', 'Icy', 'Trackmate']
+            import_types = ['CellProfiler', 'Icy', 'Trackmate', "ISBI Challenge '12"]
             self.import_type_var.set(import_types[0])
             self.import_type_picker = ttk.OptionMenu(self.frm, self.import_type_var, None, *import_types, command=self.update_import_type_picker)
 
@@ -316,8 +326,8 @@ def importTrackmodel(trackapp):
             # tm.wholeImgFileNameBase = "subtracted_2x_s1_t"  # used for whole image viewer
             # tm.panelImgFilenameBase = "subtracted_2x_s1_t"  # used for montage panels; may be the same or different
 
-            self.content.grid(row=0, column=0)
-            self.frm.grid(row=0, column=0)
+            self.content.grid(row=0, column=0, sticky="NSEW")
+            self.frm.grid(row=0, column=0, sticky="NSEW")
 
             ttk.Label(self.frm, text='Import source type:').grid(row=5, column=0, columnspan=1, sticky='W')
             self.import_type_picker.grid(row=5, column=1, columnspan=5, sticky='W')
@@ -427,9 +437,14 @@ def importTrackmodel(trackapp):
                 self.trackmate_xml_file_text = ttk.Label(self.frm1, text='...', width=80)
                 self.trackmate_xml_file_but = ttk.Button(self.frm1, text='Browse', command=self.controller.trackmate_xml_file_but_press)
                 pass
+            elif self.controller.import_config.import_type == "ISBI Challenge '12":
+                self.isbi_xml_file_label = ttk.Label(self.frm1, text='ISBI XML file:', width=20)
+                self.isbi_xml_file_text = ttk.Label(self.frm1, text='...', width=80)
+                self.isbi_xml_file_but = ttk.Button(self.frm1, text='Browse', command=self.controller.isbi_xml_file_but_press)
+                pass
             ### end frm1 setup
             ### grid frm1
-            self.frm1.grid(row=10, column=0, columnspan=5)
+            self.frm1.grid(row=10, column=0, columnspan=5, sticky='EW')
             if self.controller.import_config.import_type == 'CellProfiler':
                 # ttk.Label(self.frm, text='Image information:').grid(row=5, column=0)
                 self.imageCsvFileLabel.grid(row=10, column=0, columnspan=4, sticky='W')
@@ -469,6 +484,10 @@ def importTrackmodel(trackapp):
                 self.trackmate_xml_file_label.grid(row=10, column=0, columnspan=1, sticky='W')
                 self.trackmate_xml_file_but.grid(row=10, column=1, sticky='W')
                 self.trackmate_xml_file_text.grid(row=20, column=1, columnspan=4, sticky='W')
+            elif self.controller.import_config.import_type == "ISBI Challenge '12":
+                self.isbi_xml_file_label.grid(row=10, column=0, columnspan=1, sticky='W')
+                self.isbi_xml_file_but.grid(row=10, column=1, sticky='W')
+                self.isbi_xml_file_text.grid(row=20, column=1, columnspan=4, sticky='W')
 
             ### end frm1 grid
 
@@ -497,6 +516,9 @@ def importTrackmodel(trackapp):
 
         def update_trackmate_xml_file_text(self):
             self.trackmate_xml_file_text.configure(text=self.controller.import_config.data['trackmate_xml'])
+
+        def update_isbi_xml_file_text(self):
+            self.isbi_xml_file_text.configure(text=self.controller.import_config.data['isbi_xml'])
 
         def updateFieldPicker(self, config, optionList, default):
             key = config['var']
