@@ -14,7 +14,7 @@ Components:
 ImageViewer.py      	Module for ‘whole image’ view
 MontageFile.py       	Module for import/export and reporting operations
 Trax_io_icy.py      	Import Icy/TrackManager data
-Trax_io_isbi.py     	Import ISBI Challeng 2012 format data
+Trax_io_isbi.py     	Import ISBI Challenge 2012 format data
 Trax_io_trackmate.py	Import Fiji/TrackMate data
 MontageView.py	        Module for main program interface
 Trackmodel.py	        Module for data model
