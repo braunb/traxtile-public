@@ -196,7 +196,6 @@ def importTrackmodel(trackapp):
                 self.mfiv.updatePanelName(panelNameDict)
                 self.import_config.data['image_dir'] = panelNameDict['dir']
 
-
         def wholeImageButPress(self):
             fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Whole Image File",
                                                     parent=self.mfiv.root)
