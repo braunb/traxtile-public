@@ -1231,6 +1231,9 @@ class MontageSession(object):
         # print "pre:", self.blipCount(), "blips"
         self.blipPurge()
         # print "post:", self.blipCount(), "blips"
+        if len(self.objectDictionary) == 0:
+            print "Error: no tracks found; all cells are unlinked. Terminating."
+            exit(1)
 
         #self.notify("check parent/child completeness")
         #parentChildCompleteness()
