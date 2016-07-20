@@ -12,7 +12,7 @@ def parseFileName(fullname):
     fname = os.path.splitext(fbase)[0]
     fext = os.path.splitext(fbase)[1]
     # search for time string
-    matchObj = re.search(r'(.*t)(\d{3,})(.*)', fname)  # note '.*' is greedy; (\d{3,}) gets 3 or more digits
+    matchObj = re.search(r'(.*[Tt])(\d{3,})(.*)', fname)  # note '.*' is greedy; (\d{3,}) gets 3 or more digits
     if matchObj:
         pre = matchObj.group(1)
         num = matchObj.group(2)
@@ -35,6 +35,7 @@ def spot_for_coord(x, y, t, objects):
         print "match not found: ", x, y, t
         pass
     return retval
+
 
 
 def icy_import(spot_csv_filename, track_xml_filename, icy_tiff_image_dir):
