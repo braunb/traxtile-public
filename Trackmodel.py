@@ -1227,7 +1227,7 @@ class MontageSession(object):
 
         self.parentChildCompleteness()
 
-        self.notify("pruning blips")
+        self.notify("pruning blips (%s blips out of %s total objects)" % (self.blipCount(), len(self.objectDictionary)))
         # print "pre:", self.blipCount(), "blips"
         self.blipPurge()
         # print "post:", self.blipCount(), "blips"
