@@ -8,6 +8,7 @@ import csv
 import re
 
 
+
 class Import_config:
     def __init__(self):
         self.import_type = ''
