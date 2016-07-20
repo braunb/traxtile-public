@@ -37,7 +37,6 @@ def spot_for_coord(x, y, t, objects):
     return retval
 
 
-
 def icy_import(spot_csv_filename, track_xml_filename, icy_tiff_image_dir):
     # read file with spots
     # spot_csv_filename = '/Users/bbraun/Box Sync/montage/130530_sample_data/tiff/save/subtracted_2x_s1_t0001.tiff.csv'
