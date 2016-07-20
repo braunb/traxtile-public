@@ -31,7 +31,7 @@ def parseFileName(fullname):
     fname = os.path.splitext(fbase)[0]
     fext = os.path.splitext(fbase)[1]
     # search for time string
-    matchObj = re.search(r'(.*t)(\d{3,})(.*)', fname)  # note '.*' is greedy; (\d{3,}) gets 3 or more digits
+    matchObj = re.search(r'(.*[Tt])(\d{3,})(.*)', fname)  # note '.*' is greedy; (\d{3,}) gets 3 or more digits
     if matchObj:
         pre = matchObj.group(1)
         num = matchObj.group(2)
