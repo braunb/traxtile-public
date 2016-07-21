@@ -171,7 +171,7 @@ def importTrackmodel(trackapp):
                     pre = matchObj.group(1)
                     num = matchObj.group(2)
                     post = matchObj.group(3)
-                return {'dir': fdir, 'pre': pre, 'num': num, 'post': post, 'ext': fext}
+                return {'dir': fdir, 'pre': pre, 'num': num, 'post': post, 'ext': fext, 'timeLength': len(num)}
 
         def panelImageButPress(self):
             fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Panel Image File",
@@ -179,23 +179,10 @@ def importTrackmodel(trackapp):
             if fullname == '':
                 print "none selected"
             else:
-                # self.panelImageDir = os.path.dirname(fullname)
-                # base = os.path.basename(fullname)
-                # fname = os.path.splitext(base)[0]
-                # fext = os.path.splitext(base)[1]
-                # # search for time string
-                # matchObj = re.search(r'(.*t)(\d{4})(.*)', fname)  # not just 4 n's. Note leading (.*) is greedy
-                # # can change d{4} to d{4,} to capture a string of 4 or greater
-                # if not matchObj:
-                #     matchObj = re.search(r'(.*t)(\d{4})(.*)', fname)
-                # if matchObj:
-                #     pre = matchObj.group(1)
-                #     num = matchObj.group(2)
-                #     post = matchObj.group(3)
-                # panelNameDict = {'dir': self.panelImageDir, 'pre': pre, 'num': num, 'post': post, 'ext': fext}
                 panelNameDict = self.parseFileName(fullname)
-                self.mfiv.updatePanelName(panelNameDict)
-                self.import_config.data['image_dir'] = panelNameDict['dir']
+                self.mfiv.updatePanelName(panelNameDict)  # show parsed file name in import dialog
+                self.import_config.data['image_dir'] = panelNameDict['dir']  # add info to configuration
+                self.import_config.data['panelImgTimeLength'] = panelNameDict['timeLength']
 
         def wholeImageButPress(self):
             fullname = tkFileDialog.askopenfilename(filetypes=[("gif", "*.gif")], title="Open Whole Image File",
@@ -205,6 +192,8 @@ def importTrackmodel(trackapp):
             else:
                 d = self.parseFileName(fullname)
                 self.mfiv.updateWholeName(d)
+                self.import_config.data['wholeImgTimeLength'] = d['timeLength']
+
 
         def quit(self):
             # print 'quit MontageFile with status:', self.status
@@ -228,7 +217,7 @@ def importTrackmodel(trackapp):
                     self.import_config.data[var] = self.mfiv.fieldVars[var].get()
             elif self.import_config.import_type == 'Icy':
                 pass  # TODO
-            # data for montage panel images
+            # pull data for montage panel images off of dialog form
             self.tm.panelImageDir = self.mfiv.panelImageFileVar[0].get()
             self.tm.panelImgFilenameBase = self.mfiv.panelImageFileVar[1].get()
             # print self.mfiv.panelImageFileVar[2].get() # nnnn
@@ -238,6 +227,7 @@ def importTrackmodel(trackapp):
             wivars = []
             if self.mfiv.wholeImageSame.get():
                 wivars = self.mfiv.panelImageFileVar
+                self.import_config.data['wholeImgTimeLength'] = self.import_config.data['panelImgTimeLength']
             else:
                 wivars = self.mfiv.wholeImageFileVar
             self.tm.wholeImageDir = wivars[0].get()

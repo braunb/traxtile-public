@@ -40,10 +40,12 @@ class MontageSession(object):
         self.panelImgFilenameBase = ""  # used for montage panels; may be the same or different
         self.panelImgFilenamePost = ""
         self.panelImgExt = ""
+        self.panelImgTimeLength = 4  # number of digits for time number in filename
         self.wholeImageDir = ""
         self.wholeImgFileNameBase = ""  # used for whole image viewer
         self.wholeImgFilenamePost = ""
         self.wholeImgExt = ""
+        self.wholeImgTimeLength = 4
         # output files
         self.saveFilename = ""
         # configure those keys which may vary depending on the input file from CellProfiler
@@ -459,13 +461,14 @@ class MontageSession(object):
         return childList
 
     def panelImageFilenameForIndex(self, i):
-        # TODO: less hard coding of image filenames...zfill(4) requires exactly 4 digits
         # TODO: consider eliminating imageDictionary altogether, if filenames can be in objectDictionary
         imgData = self.imageDictionary[i]
-        #imageNumber = imgData['ImageNumber']
         timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']  # get time number
-        imgFilename = "{0}/{1}{2}{3}{4}".format(self.panelImageDir, self.panelImgFilenameBase, str(timeNumber).zfill(4),
-                                                self.panelImgFilenamePost, self.panelImgExt)
+        imgFilename = "{0}/{1}{2}{3}{4}".format(self.panelImageDir,
+                                                self.panelImgFilenameBase,
+                                                str(timeNumber).zfill(self.panelImgTimeLength),
+                                                self.panelImgFilenamePost,
+                                                self.panelImgExt)
         return imgFilename  # TODO: fails if timenumber != file number,eg 0-index vs 1-index, image #1 = xxx_t0000.gif
 
     def panelImageFilenameForKey(self, targetKey):
@@ -480,12 +483,13 @@ class MontageSession(object):
         return [os.path.abspath(x) for x in glob.glob(filename_template)]
 
     def wholeImageFilenameForIndex(self, i):  # note - file for whole image may differ from montage panels
-        # TODO: less hard coding of image filenames
         imgData = self.imageDictionary[i]
-        #imageNumber = imgData['ImageNumber']
         timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
-        imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir, self.wholeImgFileNameBase, str(timeNumber).zfill(4),
-                                                self.wholeImgFilenamePost, self.wholeImgExt)
+        imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir,
+                                                self.wholeImgFileNameBase,
+                                                str(timeNumber).zfill(self.wholeImgTimeLength),
+                                                self.wholeImgFilenamePost,
+                                                self.wholeImgExt)
         return os.path.abspath(imgFilename)
 
     def wholeImageFilenameForKey(self, targetKey):
@@ -1210,6 +1214,8 @@ class MontageSession(object):
         self.set_keyname('FrameIndex', imp['keyname_frameIndex'])
 
     def setup(self, import_config):
+        self.panelImgTimeLength = import_config.data['panelImgTimeLength']
+        self.wholeImgTimeLength = import_config.data['wholeImgTimeLength']
         if import_config.import_type == 'CellProfiler':
             self.setup_from_cp_csv(import_config.data)
         elif import_config.import_type == 'Icy':
@@ -1228,7 +1234,6 @@ class MontageSession(object):
         self.parentChildCompleteness()
 
         self.notify("pruning blips (%s blips out of %s total objects)" % (self.blipCount(), len(self.objectDictionary)))
-        # print "pre:", self.blipCount(), "blips"
         self.blipPurge()
         # print "post:", self.blipCount(), "blips"
         if len(self.objectDictionary) == 0:
