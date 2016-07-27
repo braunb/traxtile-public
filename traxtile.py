@@ -219,6 +219,14 @@ class Trackapp():
         self.reviewKeyList.sort(key=self.tm.keySorter)
         print "total", len(self.reviewKeyList), "to review"
 
+    def addKeyForReview(self, newKey):
+        if newKey not in self.reviewKeyList:
+            if self.tm.hasKey(newKey):
+                self.reviewKeyList.append(newKey)
+                self.reviewKeyList.sort(key=self.tm.keySorter)
+        newIndex = self.reviewKeyList.index(newKey)
+        return newIndex
+
     def saveSession(self, filename=None):
         if filename is None:
             filename = self.tm.saveFilename

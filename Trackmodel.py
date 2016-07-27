@@ -434,9 +434,26 @@ class MontageSession(object):
         """
         return self.objectDictionary[targetKey]  # TODO: check for key validity in Tm.cellForKey
 
-    def cellsForFrame(self, targetFrame):
+    def imageForKey(self, targetKey):
+        """
+        return the image index  for a given object key
+        @param targetKey: the key for the object
+        @return: an index into the imageDictionary
+        """
+        return int(self.cellForKey(targetKey)['ImageNumber'])
+
+    def cellsForImage(self, targetFrame, cellTypes=[]):
         # return [c for c in self.objectDictionary if c['ImageNumber'] == str(targetFrame)]
-        return {k: v for k, v in self.objectDictionary.iteritems() if v['ImageNumber'] == str(targetFrame)}
+        cells = {}
+        cellsInImage = {k: v for k, v in self.objectDictionary.iteritems() if v['ImageNumber'] == str(targetFrame)}
+        if cellTypes == []:
+            cells = cellsInImage
+        else:
+            if 'splits' in cellTypes:
+                cells.update({k: v for k, v in cellsInImage.iteritems() if k in self.splitKeyList})
+            if 'tips' in cellTypes:
+                cells.update({k: v for k, v in cellsInImage.iteritems() if k in self.tipKeyList})
+        return cells
 
     def setCellForKey(self, newKey, newCell):
         """
@@ -483,14 +500,17 @@ class MontageSession(object):
         return [os.path.abspath(x) for x in glob.glob(filename_template)]
 
     def wholeImageFilenameForIndex(self, i):  # note - file for whole image may differ from montage panels
-        imgData = self.imageDictionary[i]
-        timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
-        imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir,
-                                                self.wholeImgFileNameBase,
-                                                str(timeNumber).zfill(self.wholeImgTimeLength),
-                                                self.wholeImgFilenamePost,
-                                                self.wholeImgExt)
-        return os.path.abspath(imgFilename)
+        try:
+            imgData = self.imageDictionary[i]
+            timeNumber = imgData[self.keyname['FrameIndex']]  # imgData['Metadata_Time']
+            imgFilename = "{0}/{1}{2}{3}{4}".format(self.wholeImageDir,
+                                                    self.wholeImgFileNameBase,
+                                                    str(timeNumber).zfill(self.wholeImgTimeLength),
+                                                    self.wholeImgFilenamePost,
+                                                    self.wholeImgExt)
+            return os.path.abspath(imgFilename)
+        except KeyError:
+            return None
 
     def wholeImageFilenameForKey(self, targetKey):
         target = self.objectDictionary[targetKey]
@@ -787,7 +807,7 @@ class MontageSession(object):
     def addCell(self, new_frame, new_x, new_y):
         item = dict()
         item['ImageNumber'] = str(new_frame)
-        cellsInFrame = self.cellsForFrame(item['ImageNumber'])
+        cellsInFrame = self.cellsForImage(item['ImageNumber'])
         objectsInFrame = [int(c['ObjectNumber']) for c in cellsInFrame.values()]
         objectsInFrame.append(0)  # if there are no cells, the list is empty
         item['ObjectNumber'] = str(max(objectsInFrame) + 1)  # '99'  # TODO: FAILS IF NO OBJECTS IN FRAME: ADD 0
@@ -1214,7 +1234,7 @@ class MontageSession(object):
         self.set_keyname('FrameIndex', imp['keyname_frameIndex'])
 
     def setup(self, import_config):
-        self.panelImgTimeLength = import_config.data['panelImgTimeLength']
+        self.panelImgTimeLength = import_config.data['panelImgTimeLength']  # number of digits for time in filename
         self.wholeImgTimeLength = import_config.data['wholeImgTimeLength']
         if import_config.import_type == 'CellProfiler':
             self.setup_from_cp_csv(import_config.data)

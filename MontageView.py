@@ -24,11 +24,15 @@ class LimitedSizeDict(OrderedDict):
 
 
 class MontageController(object):
+    """
+    This is the highest level controller for the user interface
+    """
     def __init__(self, trackapp, tk_root):
         self.trackapp = trackapp
         self.mv = MontageView(self, tk_root)
         self.tm = self.mgc = self.current_selection = self.editMode = None
         # self.setModel(trackModel)
+        self.ivc = None  # image view controller
 
     def setModel(self, trackModel):
         self.tm = trackModel
@@ -129,7 +133,7 @@ class MontageController(object):
             else:
                 self.mv.cellKeyLabel.configure(text=selectedKey)
                 if currentKey != '':
-                    self.mgc.deselect(currentKey)  # TODO: move this logic into the view
+                    self.mgc.deselect(currentKey)  # TODO: move this into the view? Well, controller needs to keep logic
                 self.mgc.showSelection(selectedKey)
                 self.current_selection = selectedKey
                 self.updateListBoxes(selectedKey)
@@ -206,14 +210,27 @@ class MontageController(object):
 
     def openImages(self):
         global iv
-        ifl = self.tm.wholeImageFileList()
-        iv = ImageViewer.ImageViewer(ifl)
-        #iv.protocol("WM_DELETE_WINDOW", closeImageViewer)
+        # ifl = self.tm.wholeImageFileList()
         targetKey = self.current_selection
-        imgFilename = self.tm.wholeImageFilenameForKey(targetKey)
-        iv.setImage(imgFilename, self.mgc.mgv.panelBbox())
-        iv.lift()
-        iv.focus_force()
+        ivc = ImageViewer.ImageViewController(self.trackapp, targetKey, self.mgc.mgv.panelBbox())  # new
+        # iv.protocol("WM_DELETE_WINDOW", closeImageViewer)
+        # ivc.setTarget(targetKey, self.mgc.mgv.panelBbox())
+        # iv = ImageViewer.ImageViewer(ifl)  # old
+        # iv.setImage(imgFilename, self.mgc.mgv.panelBbox())  # old
+
+    # def openImages(self):
+    #     global iv
+    #     ifl = self.tm.wholeImageFileList()
+    #     # OLD: iv = ImageViewer.ImageViewer(ifl)
+    #     iv = ImageViewer.ImageOverlay(ifl)
+    #     #iv.protocol("WM_DELETE_WINDOW", closeImageViewer)
+    #     targetKey = self.current_selection
+    #     imgFilename = self.tm.wholeImageFilenameForKey(targetKey)
+    #     frame = self.tm.imageForKey(targetKey)
+    #     # OLD: iv.setImage(imgFilename, self.mgc.mgv.panelBbox())
+    #     iv.setImageOverlay(imgFilename, self.mgc.mgv.panelBbox(), self.tm.cellsForImage(frame))
+    #     iv.lift()
+    #     iv.focus_force()
 
     ### methods that deal with application level logic ###
     # def newickOutput(self):
@@ -260,6 +277,11 @@ class MontageController(object):
 
 
 class MontageGridController(object):  # interacts with model on behalf of view
+    """
+    This is the controller for the montage 'grid' itself, i.e. the images and associated widgets but not the
+    surrounding user interface elements. It handles the logic needed to define the montage panels, etc.  Drawing occurs
+    in the view.
+    """
     def __init__(self, trackModel, montageController, montageView):
         self.tm = trackModel
         self.montage = []  # a list of panels
@@ -333,7 +355,7 @@ class MontageGridController(object):  # interacts with model on behalf of view
     #         pass
     #         print "%.6f \t %s" % (0.0, message)
 
-    def makeMontage(self, objKey):
+    def makeMontage(self, targetKey):
         """create a 'montage' data structure for the cell having the specified key
             a montage is a list of panels
             a panel is a dictionary of: image filename, cropping info, & list of cell locations in the cropped image
@@ -352,10 +374,10 @@ class MontageGridController(object):  # interacts with model on behalf of view
         # mytimes = []
         # self.prof(mytimes, 'start')
 
-        target = self.tm.cellForKey(objKey)
+        target = self.tm.cellForKey(targetKey)
         #childKeys  = target['ChildKeys']
         #parentKeys = target['ParentKeys']
-        #print "(%s) -> [%s] -> (%s)" %(parentKeys, objKey, childKeys )
+        #print "(%s) -> [%s] -> (%s)" %(parentKeys, targetKey, childKeys )
         targetImageNumber = int(target['ImageNumber'])
         targetX = target['cellX']
         targetY = target['cellY']
@@ -375,12 +397,12 @@ class MontageGridController(object):  # interacts with model on behalf of view
             imgFilename = self.tm.panelImageFilenameForIndex(i)
             spotList = []  # list of highlighted spots (x,y) in this panel; calculated on cell selection
             imgData = self.tm.imageDictionary[i]
-            cellKeys = [ck for ck in imgData['objectKeys'] if self.tm.hasKey(ck)]
+            cellKeys = [ck for ck in imgData['objectKeys'] if self.tm.hasKey(ck)]  # TODO: replace with tm.cellsForImage?
             filteredKeys = [ck for ck in cellKeys if minX < self.tm.cellForKey(ck)['cellX'] < maxX and
                                                      minY < self.tm.cellForKey(ck)['cellY'] < maxY]
             # self.prof(mytimes, 'filtered keys')
             labelList = [self.labelForKey(ck) for ck in filteredKeys]
-            panel = {'targetKey': objKey, 'frame': i, 'imgFile': imgFilename, 'cx': targetX, 'cy': targetY, 'w': width,
+            panel = {'targetKey': targetKey, 'frame': i, 'imgFile': imgFilename, 'cx': targetX, 'cy': targetY, 'w': width,
                      'h': height, 'spots': spotList, 'labels': labelList}
             montage.append(panel)
             # self.prof(mytimes, 'loop')
