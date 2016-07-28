@@ -27,7 +27,7 @@ class ToolTip(object):
         self.x = self.y = 0
 
     def showtip(self, text, x=None, y=None):
-        "Display text in tooltip window"
+        """Display text in tooltip window"""
         self.text = text
         if self.tipwindow or not self.text:
             return
@@ -62,6 +62,7 @@ class ToolTip(object):
 
 class ImageViewController(object):
     def __init__(self,  trackapp, firstTarget, highlightBox):
+        # TODO: streamline initial window display
         self.trackapp = trackapp
         self.tm = trackapp.tm
         self.mc = trackapp.mc  # link to talk back to MontageController; maybe not needed, could go through trackapp

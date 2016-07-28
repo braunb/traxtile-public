@@ -209,10 +209,12 @@ class MontageController(object):
         self.setEditMode("AddChild")
 
     def openImages(self):
-        global iv
         # ifl = self.tm.wholeImageFileList()
         targetKey = self.current_selection
-        ivc = ImageViewer.ImageViewController(self.trackapp, targetKey, self.mgc.mgv.panelBbox())  # new
+        if self.ivc is None:
+            self.ivc = ImageViewer.ImageViewController(self.trackapp, targetKey, self.mgc.mgv.panelBbox())  # new
+        else:
+            self.ivc.setTarget(targetKey, self.mgc.mgv.panelBbox())
         # iv.protocol("WM_DELETE_WINDOW", closeImageViewer)
         # ivc.setTarget(targetKey, self.mgc.mgv.panelBbox())
         # iv = ImageViewer.ImageViewer(ifl)  # old
